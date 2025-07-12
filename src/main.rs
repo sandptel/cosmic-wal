@@ -43,9 +43,8 @@ async fn update_config(wal_colors: Colors) -> Result<(), Box<dyn std::error::Err
     let success_color = *wal_colors.colors.get("color12").ok_or("Missing color12")?;
     let warning_color = *wal_colors.colors.get("color14").ok_or("Missing color14")?;
     let destructive_color = *wal_colors.colors.get("color11").ok_or("Missing color11")?;
-    let bg_color = *wal_colors.colors.get("color0").ok_or("Missing color11")?;
-    // let bg_color = wal_colors.special.background;
-    let primary_container_color = *wal_colors.colors.get("color2").ok_or("Missing color2")?;
+    let bg_color = wal_colors.special.background;
+    let primary_container_color = *wal_colors.colors.get("color1").ok_or("Missing color2")?;
     let neutral_tint_color = *wal_colors.colors.get("color9").ok_or("Missing color9")?;
     let text_tint_color = wal_colors.special.foreground;
 
