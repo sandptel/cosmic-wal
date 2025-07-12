@@ -6,7 +6,7 @@ use notify::event::EventKind;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 mod colors;
-use crate::colors::Colors;
+use crate::colors::{Colors, COLORS_FILE_PATH};
 
 
 async fn update_config(wal_colors: Colors) -> Result<(), Box<dyn std::error::Error>> {
@@ -75,7 +75,7 @@ async fn update_config(wal_colors: Colors) -> Result<(), Box<dyn std::error::Err
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get the wallust colors file path
     let home_dir = std::env::var("HOME").expect("HOME environment variable not set");
-    let colors_path = PathBuf::from(home_dir).join(".cache/wallust/colors.json");
+    let colors_path = PathBuf::from(home_dir).join(COLORS_FILE_PATH);
     
     println!("Watching for changes in: {:?}", colors_path);
     

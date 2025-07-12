@@ -4,6 +4,9 @@ use serde::{ Deserialize, Serialize };
 use cosmic_theme::palette::{ Srgb };
 use std::collections::HashMap;
 
+// Define the colors file path as a constant
+pub const COLORS_FILE_PATH: &str = ".cache/wal/colors.json";
+
 #[derive(Debug, Deserialize, Serialize)]
 struct RawColors {
     checksum: String,
@@ -38,7 +41,8 @@ pub struct ParsedSpecial {
 
 impl Colors {
     pub fn load() -> Result<Colors, Box<dyn std::error::Error>> {
-        let json_path = "/home/roronoa/.cache/wallust/colors.json";
+        let home_dir = std::env::var("HOME").expect("HOME environment variable not set");
+        let json_path = PathBuf::from(home_dir).join(COLORS_FILE_PATH);
         let content = fs::read_to_string(json_path)?;
         let raw_colors: RawColors = serde_json::from_str(&content)?;
 
