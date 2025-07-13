@@ -4,6 +4,8 @@ A dynamic theme updater for COSMIC Desktop Environment that automatically syncs 
 
 ## Overview
 
+https://github.com/user-attachments/assets/2c85e2d7-e099-4886-8b77-6c83dd42946a
+
 `cosmic-wal` bridges the gap between pywal's automatic wallpaper color extraction and COSMIC DE's theming system. It monitors pywal's color output and automatically updates your COSMIC theme to match your wallpaper colors, creating a cohesive and dynamic desktop experience.
 
 ## Features
@@ -19,7 +21,7 @@ A dynamic theme updater for COSMIC Desktop Environment that automatically syncs 
 ### Prerequisites
 
 - COSMIC Desktop Environment
-- pywal (or wallust/any tool that generates `~/.cache/wal/colors.json`)
+- pywal (or wallust/any tool that generates `~/.cache/wal/colors.json` or any equivalent)
 - Rust toolchain (for building from source)
 
 ### From Source
