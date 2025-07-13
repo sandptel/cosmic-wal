@@ -1,13 +1,12 @@
 use cosmic_config::{ CosmicConfigEntry };
 use cosmic_theme::{ Theme, ThemeBuilder, ThemeMode };
 use std::path::PathBuf;
-use notify::{Watcher, RecursiveMode, RecommendedWatcher, Event};
+use notify::{ Watcher, RecursiveMode, RecommendedWatcher, Event };
 use notify::event::EventKind;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 mod colors;
-use crate::colors::{Colors, COLORS_FILE_PATH};
-
+use crate::colors::{ Colors, COLORS_FILE_PATH };
 
 async fn update_config(wal_colors: Colors) -> Result<(), Box<dyn std::error::Error>> {
     // Load current theme mode (dark/light)
@@ -73,42 +72,44 @@ async fn update_config(wal_colors: Colors) -> Result<(), Box<dyn std::error::Err
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    daemon().await
+}
+
+
+async fn daemon() -> Result<(), Box<dyn std::error::Error>> {
     // Get the wallust colors file path
     let home_dir = std::env::var("HOME").expect("HOME environment variable not set");
     let colors_path = PathBuf::from(home_dir).join(COLORS_FILE_PATH);
-    
+
     println!("Watching for changes in: {:?}", colors_path);
-    
+
     // Load initial colors and update theme
     if let Ok(wal_colors) = Colors::load() {
         if let Err(e) = update_config(wal_colors).await {
             eprintln!("Error updating theme: {}", e);
         }
     }
-    
+
     // Create a channel to receive the events
     let (tx, rx) = channel();
-    
+
     // Create a watcher object
-    let mut watcher = RecommendedWatcher::new(
-        move |res: Result<Event, notify::Error>| {
-            match res {
-                Ok(event) => {
-                    if let Err(e) = tx.send(event) {
-                        eprintln!("Error sending event: {}", e);
-                    }
+    let mut watcher = RecommendedWatcher::new(move |res: Result<Event, notify::Error>| {
+        match res {
+            Ok(event) => {
+                if let Err(e) = tx.send(event) {
+                    eprintln!("Error sending event: {}", e);
                 }
-                Err(e) => eprintln!("Watch error: {:?}", e),
             }
-        },
-        notify::Config::default().with_poll_interval(Duration::from_secs(1))
-    )?;
-    
+            Err(e) => eprintln!("Watch error: {:?}", e),
+        }
+    }, notify::Config::default().with_poll_interval(Duration::from_secs(1)))?;
+
     // Add a path to be watched
     watcher.watch(&colors_path, RecursiveMode::NonRecursive)?;
-    
+
     println!("File watcher started. Press Ctrl+C to exit.");
-    
+
     // Watch for file changes
     loop {
         // Use a small timeout to make the loop non-blocking
@@ -117,7 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Only process modify events to avoid duplicate updates
                 if matches!(event.kind, EventKind::Modify(_)) {
                     println!("File change detected: {:?}", event);
-                    
+
                     // Load new colors and update theme
                     match Colors::load() {
                         Ok(wal_colors) => {
@@ -143,6 +144,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     Ok(())
 }
