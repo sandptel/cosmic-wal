@@ -4,9 +4,6 @@ use serde::{ Deserialize, Serialize };
 use cosmic_theme::palette::{ Srgb };
 use std::collections::HashMap;
 
-// Define the colors file path as a constant
-pub const COLORS_FILE_PATH: &str = ".cache/wal/colors.json";
-
 #[derive(Debug, Deserialize, Serialize)]
 struct RawColors {
     checksum: String,
@@ -40,10 +37,8 @@ pub struct ParsedSpecial {
 }
 
 impl Colors {
-    pub fn load() -> Result<Colors, Box<dyn std::error::Error>> {
-        let home_dir = std::env::var("HOME").expect("HOME environment variable not set");
-        let json_path = PathBuf::from(home_dir).join(COLORS_FILE_PATH);
-        let content = fs::read_to_string(json_path)?;
+    pub fn load(colors_json_path: &PathBuf) -> Result<Colors, Box<dyn std::error::Error>> {
+        let content = fs::read_to_string(colors_json_path)?;
         let raw_colors: RawColors = serde_json::from_str(&content)?;
 
         let alpha = raw_colors.alpha.parse::<u8>()?;
@@ -75,9 +70,9 @@ fn hex_to_srgb(hex: &str) -> Result<Srgb<f32>, Box<dyn std::error::Error>> {
         return Err("Invalid hex color format".into());
     }
 
-    let r = u8::from_str_radix(&hex[0..2], 16)? as f32 / 255.0;
-    let g = u8::from_str_radix(&hex[2..4], 16)? as f32 / 255.0;
-    let b = u8::from_str_radix(&hex[4..6], 16)? as f32 / 255.0;
+    let r = (u8::from_str_radix(&hex[0..2], 16)? as f32) / 255.0;
+    let g = (u8::from_str_radix(&hex[2..4], 16)? as f32) / 255.0;
+    let b = (u8::from_str_radix(&hex[4..6], 16)? as f32) / 255.0;
 
     Ok(Srgb::new(r, g, b))
 }

@@ -6,9 +6,17 @@ use notify::event::EventKind;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 mod colors;
-use crate::colors::{ Colors, COLORS_FILE_PATH };
+mod config;
+use crate::config::ColorConfig;
+use crate::colors::{ Colors };
+// Define the colors file path as a constant
+pub const COLORS_FILE_PATH: &str = ".cache/wal/colors.json";
+pub const CONFIG_FILE_PATH: &str = ".cache/cosmic/colors.toml";
 
-async fn update_config(wal_colors: Colors) -> Result<(), Box<dyn std::error::Error>> {
+async fn change_colors(
+    config_path: &Option<PathBuf>,
+    wal_colors: Colors
+) -> Result<(), Box<dyn std::error::Error>> {
     // Load current theme mode (dark/light)
     let theme_mode_config = ThemeMode::config()?;
     let theme_mode = ThemeMode::get_entry(&theme_mode_config).unwrap();
@@ -37,17 +45,19 @@ async fn update_config(wal_colors: Colors) -> Result<(), Box<dyn std::error::Err
 
     let mut theme_builder = ThemeBuilder::get_entry(&theme_builder_config).unwrap();
 
-    // Initialize all colors from wallust palette
-    let accent_color = *wal_colors.colors.get("color13").ok_or("Missing color13")?;
-    let success_color = *wal_colors.colors.get("color12").ok_or("Missing color12")?;
-    let warning_color = *wal_colors.colors.get("color14").ok_or("Missing color14")?;
-    let destructive_color = *wal_colors.colors.get("color11").ok_or("Missing color11")?;
-    let bg_color = wal_colors.special.background;
-    let primary_container_color = *wal_colors.colors.get("color1").ok_or("Missing color2")?;
-    let neutral_tint_color = *wal_colors.colors.get("color9").ok_or("Missing color9")?;
-    let text_tint_color = wal_colors.special.foreground;
+    let color_config = ColorConfig::load(config_path.to_owned());
+    let (
+        accent_color,
+        success_color,
+        warning_color,
+        destructive_color,
+        bg_color,
+        primary_container_color,
+        neutral_tint_color,
+        text_tint_color,
+    ) = color_config.load_cosmic_colors(&wal_colors);
 
-    // Apply all colors to theme builder
+    // Apupdate_configply all colors to theme builder
     theme_builder = theme_builder
         .accent(accent_color)
         .success(success_color)
@@ -75,17 +85,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     daemon().await
 }
 
-
 async fn daemon() -> Result<(), Box<dyn std::error::Error>> {
     // Get the wallust colors file path
     let home_dir = std::env::var("HOME").expect("HOME environment variable not set");
     let colors_path = PathBuf::from(home_dir).join(COLORS_FILE_PATH);
-
+    let config_path = Some(PathBuf::from(CONFIG_FILE_PATH));
+    let config_path = None;
     println!("Watching for changes in: {:?}", colors_path);
 
     // Load initial colors and update theme
-    if let Ok(wal_colors) = Colors::load() {
-        if let Err(e) = update_config(wal_colors).await {
+    if let Ok(wal_colors) = Colors::load(&colors_path) {
+        if let Err(e) = change_colors(&config_path,wal_colors).await {
             eprintln!("Error updating theme: {}", e);
         }
     }
@@ -120,9 +130,9 @@ async fn daemon() -> Result<(), Box<dyn std::error::Error>> {
                     println!("File change detected: {:?}", event);
 
                     // Load new colors and update theme
-                    match Colors::load() {
+                    match Colors::load(&colors_path) {
                         Ok(wal_colors) => {
-                            if let Err(e) = update_config(wal_colors).await {
+                            if let Err(e) = change_colors(&config_path,wal_colors).await {
                                 eprintln!("Error updating theme: {}", e);
                             } else {
                                 println!("Theme successfully updated!");
