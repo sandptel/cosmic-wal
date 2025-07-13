@@ -5,13 +5,15 @@ use notify::{ Watcher, RecursiveMode, RecommendedWatcher, Event };
 use notify::event::EventKind;
 use std::sync::mpsc::channel;
 use std::time::Duration;
+use std::env;
 mod colors;
 mod config;
 use crate::config::ColorConfig;
 use crate::colors::{ Colors };
+
 // Define the colors file path as a constant
 pub const COLORS_FILE_PATH: &str = ".cache/wal/colors.json";
-pub const CONFIG_FILE_PATH: &str = ".cache/cosmic/colors.toml";
+pub const CONFIG_FILE_PATH: &str = ".config/cosmic-wal/config.toml";
 
 async fn change_colors(
     config_path: &Option<PathBuf>,
@@ -57,7 +59,7 @@ async fn change_colors(
         text_tint_color,
     ) = color_config.load_cosmic_colors(&wal_colors);
 
-    // Apupdate_configply all colors to theme builder
+    // Apply all colors to theme builder
     theme_builder = theme_builder
         .accent(accent_color)
         .success(success_color)
@@ -80,22 +82,74 @@ async fn change_colors(
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    daemon().await
+async fn refresh_theme(colors_path: &PathBuf, config_path: &Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Refreshing theme once...");
+    
+    match Colors::load(colors_path) {
+        Ok(wal_colors) => {
+            change_colors(config_path, wal_colors).await?;
+            println!("Theme successfully refreshed!");
+        }
+        Err(e) => {
+            eprintln!("Error loading colors: {}", e);
+            return Err(e);
+        }
+    }
+
+    Ok(())
 }
 
-async fn daemon() -> Result<(), Box<dyn std::error::Error>> {
-    // Get the wallust colors file path
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize paths
     let home_dir = std::env::var("HOME").expect("HOME environment variable not set");
-    let colors_path = PathBuf::from(home_dir).join(COLORS_FILE_PATH);
-    let config_path = Some(PathBuf::from(CONFIG_FILE_PATH));
-    let config_path = None;
+    let colors_path = PathBuf::from(&home_dir).join(COLORS_FILE_PATH);
+    let config_path = Some(PathBuf::from(&home_dir).join(CONFIG_FILE_PATH));
+
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() > 1 {
+        match args[1].as_str() {
+            "--refresh" => {
+                refresh_theme(&colors_path, &config_path).await?;
+            }
+            "--daemon" => {
+                daemon(&colors_path, &config_path).await?;
+            }
+            "--help" | "-h" => {
+                print_help();
+            }
+            _ => {
+                eprintln!("Unknown argument: {}", args[1]);
+                print_help();
+                std::process::exit(1);
+            }
+        }
+    } else {
+        print_help();
+    }
+
+    Ok(())
+}
+
+fn print_help() {
+    println!("cosmic-wal - Cosmic theme updater for pywal colors");
+    println!();
+    println!("USAGE:");
+    println!("    cosmic-wal [OPTIONS]");
+    println!();
+    println!("OPTIONS:");
+    println!("    --refresh    Refresh theme once and exit");
+    println!("    --daemon     Start daemon to watch for color changes");
+    println!("    --help, -h   Show this help message");
+}
+
+async fn daemon(colors_path: &PathBuf, config_path: &Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     println!("Watching for changes in: {:?}", colors_path);
 
     // Load initial colors and update theme
-    if let Ok(wal_colors) = Colors::load(&colors_path) {
-        if let Err(e) = change_colors(&config_path,wal_colors).await {
+    if let Ok(wal_colors) = Colors::load(colors_path) {
+        if let Err(e) = change_colors(config_path, wal_colors).await {
             eprintln!("Error updating theme: {}", e);
         }
     }
@@ -116,7 +170,7 @@ async fn daemon() -> Result<(), Box<dyn std::error::Error>> {
     }, notify::Config::default().with_poll_interval(Duration::from_secs(1)))?;
 
     // Add a path to be watched
-    watcher.watch(&colors_path, RecursiveMode::NonRecursive)?;
+    watcher.watch(colors_path, RecursiveMode::NonRecursive)?;
 
     println!("File watcher started. Press Ctrl+C to exit.");
 
@@ -130,9 +184,9 @@ async fn daemon() -> Result<(), Box<dyn std::error::Error>> {
                     println!("File change detected: {:?}", event);
 
                     // Load new colors and update theme
-                    match Colors::load(&colors_path) {
+                    match Colors::load(colors_path) {
                         Ok(wal_colors) => {
-                            if let Err(e) = change_colors(&config_path,wal_colors).await {
+                            if let Err(e) = change_colors(config_path, wal_colors).await {
                                 eprintln!("Error updating theme: {}", e);
                             } else {
                                 println!("Theme successfully updated!");
